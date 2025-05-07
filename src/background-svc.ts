@@ -6,18 +6,21 @@ import { MessageRequest, MessageResponse } from './types/message';
  * @param params 参数
  * @returns Promise<MessageResponse>
  */
-export async function callBg<T>(action: string, params: T = null as T): Promise<any> {
+export async function callBg(
+  method: string,
+  params: MessageRequest['params'] = null
+): Promise<MessageResponse['data']> {
   try {
     const response = await chrome.runtime.sendMessage({
-      action,
+      method,
       params,
-    } as MessageRequest<T>);
+    } as MessageRequest);
     if (response.error) {
       throw new Error(response.error);
     }
     return response.data;
   } catch (error) {
-    throw error instanceof Error ? error : new Error('未知错误');
+    throw error instanceof Error ? error : new Error('unknown error');
   }
 }
 
@@ -27,34 +30,73 @@ export async function callBg<T>(action: string, params: T = null as T): Promise<
  * @param params 参数
  * @returns Promise<any>
  */
-export async function callContentScript<T = any>(
-  action: string,
-  params: T = null as T
-): Promise<any> {
+export async function callContentScript(
+  method: string,
+  params: MessageRequest['params'] = null
+): Promise<MessageResponse['data']> {
   return new Promise((resolve, reject) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
       const activeTab = tabs[0];
       if (activeTab?.id) {
-        chrome.tabs.sendMessage(activeTab.id, { action, params }, (response: any) => {
+        chrome.tabs.sendMessage(activeTab.id, { method, params }, (response: unknown) => {
           resolve(response);
         });
       } else {
-        reject(new Error('没有找到活动标签页'));
+        reject(new Error('no active tab'));
       }
     });
   });
 }
 
+/**
+ * 调用 content script 的函数
+ * @param action 动作名称
+ * @param params 参数
+ * @param tabId 目标 tab id
+ * @returns Promise<any>
+ */
+export async function callContentScriptToTab(
+  method: string,
+  params: MessageRequest['params'] = null,
+  tabId: number | null = null
+): Promise<MessageResponse['data']> {
+  const targetTabId: number =
+    tabId ?? (await chrome.tabs.query({ active: true, currentWindow: true }))[0]!.id!;
+  if (!targetTabId) {
+    throw new Error('no active tab');
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.sendMessage(
+        targetTabId as number,
+        { method, params },
+        (response: MessageResponse['data']) => {
+          resolve(response);
+        }
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('unknown error');
+      reject(err);
+    }
+  });
+}
 export class BackgroundSvc {
-  private handlers: Map<string, (params: MessageRequest) => Promise<MessageResponse>>;
-  private defaultHandler: ((params: MessageRequest) => Promise<MessageResponse>) | null;
+  private handlers: Map<
+    string,
+    (params: MessageRequest['params']) => Promise<MessageResponse['data']>
+  >;
+  private defaultHandler:
+    | ((params: MessageRequest['params']) => Promise<MessageResponse['data']>)
+    | null;
 
-  constructor(defaultHandler?: (params: MessageRequest) => Promise<MessageResponse>) {
+  constructor(
+    defaultHandler?: (params: MessageRequest['params']) => Promise<MessageResponse['data']>
+  ) {
     this.handlers = new Map();
     this.defaultHandler = defaultHandler || null;
   }
 
-  public register(handler: (params: MessageRequest) => Promise<MessageResponse>) {
+  public register(handler: (params: MessageRequest['params']) => Promise<MessageResponse['data']>) {
     this.handlers.set(handler.name, handler);
   }
 
@@ -65,15 +107,15 @@ export class BackgroundSvc {
         sender: chrome.runtime.MessageSender,
         sendResponse: (response: MessageResponse) => void
       ) => {
-        const { action } = request;
+        const { method } = request;
 
         const handleRequest = async () => {
           try {
-            const handler = this.handlers.get(action) || this.defaultHandler;
+            const handler = this.handlers.get(method) || this.defaultHandler;
             if (!handler) {
               sendResponse({
                 success: false,
-                error: `未找到对应的处理器: ${action}`,
+                error: `no handler found for method: ${method}`,
               });
               return;
             }
