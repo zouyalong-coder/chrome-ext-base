@@ -1,5 +1,13 @@
 import { BackgroundSvc, callContentScriptToTab } from '../../src/background-svc';
-import type { MessageRequest, TestMessageParams, BackgroundMessageParams } from './types';
+import type {
+  MessageRequest,
+  TestMessageParams,
+  BackgroundMessageParams,
+  SendToContentParams,
+  PageInfoParams,
+  InjectScriptParams,
+  StorageParams,
+} from './types';
 
 /**
  * 示例插件服务类 - 继承自 BackgroundSvc
@@ -16,16 +24,28 @@ class ExamplePluginService extends BackgroundSvc {
    */
   private initializeHandlers(): void {
     // 注册测试消息处理器
-    this.register(this.handleTestMessage.bind(this));
+    this.registerHandler('handleTestMessage', this.handleTestMessage.bind(this));
 
     // 注册获取标签页信息处理器
-    this.register(this.handleGetTabInfo.bind(this));
+    this.registerHandler('handleGetTabInfo', this.handleGetTabInfo.bind(this));
 
     // 注册存储数据处理器
-    this.register(this.handleStoreData.bind(this));
+    this.registerHandler('handleStoreData', this.handleStoreData.bind(this));
 
     // 注册获取存储数据处理器
-    this.register(this.handleGetStoredData.bind(this));
+    this.registerHandler('handleGetStoredData', this.handleGetStoredData.bind(this));
+
+    // 注册向 Content 发送消息处理器
+    this.registerHandler('handleSendToContent', this.handleSendToContent.bind(this));
+
+    // 注册获取页面信息处理器
+    this.registerHandler('handleGetPageInfo', this.handleGetPageInfo.bind(this));
+
+    // 注册注入脚本处理器
+    this.registerHandler('handleInjectScript', this.handleInjectScript.bind(this));
+
+    // 注册清除存储数据处理器
+    this.registerHandler('handleClearStorage', this.handleClearStorage.bind(this));
   }
 
   /**
@@ -130,6 +150,132 @@ class ExamplePluginService extends BackgroundSvc {
       };
     } catch (error) {
       console.error('获取存储数据时出错:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 处理向 Content 发送消息请求
+   */
+  private async handleSendToContent(request: MessageRequest<SendToContentParams>): Promise<any> {
+    console.log('ExamplePluginService 处理向 Content 发送消息请求:', request.params);
+
+    try {
+      const { message, action, data } = request.params;
+
+      const messageToContent: MessageRequest = {
+        method: 'fromSidepanel',
+        params: {
+          message,
+          action,
+          data,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      const response = await callContentScriptToTab(
+        messageToContent.method,
+        messageToContent.params
+      );
+
+      return {
+        message: '消息已发送到 Content',
+        contentResponse: response,
+        action,
+        sentAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('向 Content 发送消息时出错:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 处理获取页面信息请求
+   */
+  private async handleGetPageInfo(request: MessageRequest<PageInfoParams>): Promise<any> {
+    console.log('ExamplePluginService 处理获取页面信息请求:', request.params);
+
+    try {
+      const messageToContent: MessageRequest = {
+        method: 'getPageInfo',
+        params: request.params,
+      };
+
+      const response = await callContentScriptToTab(
+        messageToContent.method,
+        messageToContent.params
+      );
+
+      return {
+        message: '页面信息获取成功',
+        pageInfo: response,
+        retrievedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('获取页面信息时出错:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 处理注入脚本请求
+   */
+  private async handleInjectScript(request: MessageRequest<InjectScriptParams>): Promise<any> {
+    console.log('ExamplePluginService 处理注入脚本请求:', request.params);
+
+    try {
+      const { script, type = 'inline' } = request.params;
+
+      const messageToContent: MessageRequest = {
+        method: 'injectScript',
+        params: { script, type },
+      };
+
+      const response = await callContentScriptToTab(
+        messageToContent.method,
+        messageToContent.params
+      );
+
+      return {
+        message: '脚本注入成功',
+        scriptType: type,
+        response,
+        injectedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('注入脚本时出错:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 处理清除存储数据请求
+   */
+  private async handleClearStorage(request: MessageRequest<StorageParams>): Promise<any> {
+    console.log('ExamplePluginService 处理清除存储数据请求:', request.params);
+
+    try {
+      const { key } = request.params;
+
+      if (key) {
+        // 清除指定键的数据
+        await chrome.storage.local.remove(key);
+        return {
+          message: `键 "${key}" 的数据已清除`,
+          clearedKey: key,
+          clearedAt: new Date().toISOString(),
+        };
+      } else {
+        // 清除所有数据
+        await chrome.storage.local.clear();
+        return {
+          message: '所有存储数据已清除',
+          clearedAt: new Date().toISOString(),
+        };
+      }
+    } catch (error) {
+      console.error('清除存储数据时出错:', error);
       throw error;
     }
   }

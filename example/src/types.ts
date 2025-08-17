@@ -25,3 +25,24 @@ export interface ContentResponse {
   receivedAt: string;
   originalMessage: string;
 }
+
+export interface SendToContentParams {
+  message: string;
+  action: 'showNotification' | 'getPageInfo' | 'injectScript';
+  data?: any;
+}
+
+export interface PageInfoParams {
+  includeDOM?: boolean;
+  includeMeta?: boolean;
+}
+
+export interface InjectScriptParams {
+  script: string;
+  type?: 'inline' | 'file';
+}
+
+export interface StorageParams {
+  key: string;
+  value?: any;
+}

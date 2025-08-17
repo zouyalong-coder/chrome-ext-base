@@ -1,66 +1,113 @@
-# Chrome Ext Base - BackgroundSvc 继承示例
+# Chrome 扩展示例 - 完整消息传递演示
 
-这个示例展示了如何通过继承 `BackgroundSvc` 类来构建 Chrome 扩展的 Background Service。
+这是一个展示 Chrome 扩展中完整消息传递机制的示例项目，包括 Sidepanel、Background Script 和 Content Script 之间的通信。
 
 ## 功能特性
 
-- **继承 BackgroundSvc**: 通过继承基础服务类来构建插件服务
-- **消息处理器注册**: 自动注册和管理消息处理器
-- **多种功能演示**: 包含测试消息、标签页信息获取、数据存储等功能
-- **类型安全**: 完整的 TypeScript 类型支持
+### 🎯 核心功能
 
-## 项目结构
+- **Sidepanel 界面**: 提供用户交互界面
+- **Background 服务**: 处理扩展核心逻辑
+- **Content Script**: 与网页交互
+- **完整消息传递**: 三者之间的双向通信
+
+### 📋 按钮功能说明
+
+#### 1. 📤 测试消息
+
+- **功能**: 向 Background 发送测试消息
+- **流程**: Sidepanel → Background → Content → Background → Sidepanel
+- **效果**: 在页面上显示通知，返回处理结果
+
+#### 2. 📋 获取标签页信息
+
+- **功能**: 获取当前活动标签页的详细信息
+- **数据**: 标签页 ID、URL、标题、状态等
+- **用途**: 了解当前浏览环境
+
+#### 3. 💾 存储数据
+
+- **功能**: 将数据存储到 Chrome 本地存储
+- **数据**: 包含消息、时间戳、随机值
+- **持久化**: 数据在浏览器重启后仍然保留
+
+#### 4. 📖 获取存储数据
+
+- **功能**: 从 Chrome 本地存储读取数据
+- **验证**: 确认数据存储和读取功能正常
+
+#### 5. 📨 向 Content 发送消息
+
+- **功能**: 直接向当前页面的 Content Script 发送消息
+- **效果**: 在页面上显示绿色通知
+- **用途**: 演示 Sidepanel 到 Content 的直接通信
+
+#### 6. 🌐 获取页面信息
+
+- **功能**: 获取当前网页的详细信息
+- **数据**: URL、标题、域名、Meta 标签、DOM 统计等
+- **用途**: 分析页面结构和内容
+
+#### 7. 🔧 注入脚本
+
+- **功能**: 向当前页面注入并执行 JavaScript 代码
+- **效果**: 临时为页面添加蓝色边框
+- **安全**: 脚本执行后自动清理
+
+#### 8. 🗑️ 清除存储数据
+
+- **功能**: 清除指定的存储数据
+- **用途**: 数据管理和清理
+
+## 技术架构
+
+### 消息传递流程
+
+```
+┌─────────────┐    ┌──────────────┐    ┌─────────────┐
+│  Sidepanel  │◄──►│   Background │◄──►│   Content   │
+│             │    │              │    │             │
+│ 用户界面     │    │  核心服务     │    │  页面交互    │
+└─────────────┘    └──────────────┘    └─────────────┘
+```
+
+### 文件结构
 
 ```
 example/
 ├── src/
-│   ├── background.ts      # 继承 BackgroundSvc 的示例服务
-│   ├── sidepanel.html     # 侧边栏界面
-│   ├── sidepanel.ts       # 侧边栏逻辑
-│   ├── content.ts         # 内容脚本
-│   └── types.ts           # 类型定义
-├── manifest.json          # 扩展清单
-├── package.json           # 项目配置
-└── README.md             # 说明文档
+│   ├── sidepanel.html    # Sidepanel 界面
+│   ├── sidepanel.ts      # Sidepanel 逻辑
+│   ├── background.ts     # Background 服务
+│   ├── content.ts        # Content Script
+│   └── types.ts          # 类型定义
+├── manifest.json         # 扩展清单
+├── package.json          # 项目配置
+└── README.md            # 说明文档
 ```
 
-## 核心概念
+### 核心类
 
-### BackgroundSvc 继承
+#### ExamplePluginService (Background)
 
-`ExamplePluginService` 类继承自 `BackgroundSvc`，提供了以下优势：
+- 继承自 `BackgroundSvc`
+- 处理所有来自 Sidepanel 的消息
+- 管理存储和标签页操作
+- 协调 Content Script 通信
 
-1. **统一的消息处理**: 自动处理 Chrome 扩展的消息传递
-2. **处理器注册机制**: 通过 `register()` 方法注册消息处理器
-3. **错误处理**: 统一的错误处理和响应格式
-4. **类型安全**: 完整的 TypeScript 类型支持
+#### ContentScript (Content)
 
-### 示例服务类
-
-```typescript
-class ExamplePluginService extends BackgroundSvc {
-  constructor() {
-    super();
-    this.initializeHandlers();
-  }
-
-  private initializeHandlers(): void {
-    // 注册各种消息处理器
-    this.register(this.handleTestMessage.bind(this));
-    this.register(this.handleGetTabInfo.bind(this));
-    this.register(this.handleStoreData.bind(this));
-    this.register(this.handleGetStoredData.bind(this));
-  }
-
-  // 实现具体的处理器方法...
-}
-```
+- 继承自 `Inject`
+- 处理来自 Background 的消息
+- 提供页面信息获取
+- 支持脚本注入功能
 
 ## 使用方法
 
 ### 1. 安装依赖
 
 ```bash
+cd example
 npm install
 ```
 
@@ -74,126 +121,63 @@ npm run build
 
 1. 打开 Chrome 浏览器
 2. 访问 `chrome://extensions/`
-3. 启用"开发者模式"
+3. 开启"开发者模式"
 4. 点击"加载已解压的扩展程序"
-5. 选择 `example` 目录
-
-**注意**: 如果点击扩展图标后 sidepanel 不显示，请：
-
-- 确保 Chrome 版本 >= 114
-- 右键点击扩展图标，选择"打开侧边栏"
-- 或使用快捷键 `Ctrl+Shift+Y`（Windows/Linux）或 `Cmd+Shift+Y`（Mac）
-- 查看 [故障排除指南](./TROUBLESHOOTING.md) 获取更多帮助
+5. 选择 `example/dist` 目录
 
 ### 4. 测试功能
 
-1. 打开任意网页
-2. 点击扩展图标，打开侧边栏
-3. 点击各种按钮测试功能：
-   - **测试消息**: 发送消息到 content script
-   - **获取标签页信息**: 获取当前标签页的详细信息
-   - **存储数据**: 将数据存储到 Chrome 本地存储
-   - **获取存储数据**: 从 Chrome 本地存储读取数据
+1. 点击扩展图标打开 Sidepanel
+2. 在任意网页上测试各个按钮功能
+3. 观察页面上的通知效果
+4. 查看控制台日志了解消息传递过程
 
-## 功能详解
+## 开发说明
 
-### 1. 测试消息 (handleTestMessage)
-
-- 发送消息到当前活动标签页的 content script
-- 接收 content script 的响应
-- 返回处理结果
-
-### 2. 获取标签页信息 (handleGetTabInfo)
-
-- 查询当前活动标签页
-- 返回标签页的 ID、URL、标题、状态等信息
-
-### 3. 存储数据 (handleStoreData)
-
-- 使用 Chrome 的 `storage.local` API
-- 存储键值对数据
-- 返回存储确认信息
-
-### 4. 获取存储数据 (handleGetStoredData)
-
-- 从 Chrome 本地存储读取数据
-- 返回存储的数据和检索时间
-
-## 扩展开发
-
-### 添加新的消息处理器
-
-1. 在 `ExamplePluginService` 类中添加新的处理方法：
+### 消息类型定义
 
 ```typescript
-private async handleNewFeature(request: MessageRequest<NewFeatureParams>): Promise<any> {
-  // 实现新功能逻辑
-  return { result: 'success' };
+// 基础消息结构
+interface MessageRequest<T = unknown> {
+  method: string;
+  params: T;
+}
+
+interface MessageResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 ```
 
-2. 在 `initializeHandlers()` 方法中注册处理器：
+### 添加新功能
 
-```typescript
-this.register(this.handleNewFeature.bind(this));
-```
-
-3. 在 sidepanel 中添加调用代码：
-
-```typescript
-const result = await sendMessage('handleNewFeature', {
-  // 参数
-});
-```
-
-### 自定义服务类
-
-你可以创建自己的服务类来继承 `BackgroundSvc`：
-
-```typescript
-class MyCustomService extends BackgroundSvc {
-  constructor() {
-    super();
-    this.initializeHandlers();
-  }
-
-  private initializeHandlers(): void {
-    // 注册你的处理器
-  }
-
-  // 实现你的业务逻辑
-}
-```
-
-## 技术栈
-
-- **TypeScript**: 类型安全的 JavaScript
-- **Vite**: 快速构建工具
-- **Chrome Extensions API**: Chrome 扩展开发 API
-- **Chrome Storage API**: 本地数据存储
-
-## 注意事项
-
-1. 确保在 `manifest.json` 中正确配置了权限
-2. 消息处理器必须是异步函数
-3. 使用 `bind(this)` 确保处理器中的 `this` 指向正确
-4. 错误处理会自动包装在统一的响应格式中
-
-## 故障排除
-
-### 常见问题
-
-1. **消息发送失败**: 检查扩展是否正确加载
-2. **权限错误**: 确认 `manifest.json` 中的权限配置
-3. **类型错误**: 确保 TypeScript 类型定义正确
+1. 在 `types.ts` 中定义新的参数类型
+2. 在 `background.ts` 中添加新的消息处理器
+3. 在 `content.ts` 中添加对应的处理方法
+4. 在 `sidepanel.ts` 中添加新的按钮事件
+5. 在 `sidepanel.html` 中添加新的按钮
 
 ### 调试技巧
 
-1. 打开 Chrome 开发者工具
-2. 查看 Console 标签页的日志输出
-3. 在 Sources 标签页中设置断点
-4. 使用 Chrome 扩展的调试页面
+- 使用 Chrome DevTools 查看 Background 页面
+- 在网页控制台查看 Content Script 日志
+- 在 Sidepanel 中查看消息响应结果
 
-## 贡献
+## 注意事项
 
-欢迎提交 Issue 和 Pull Request 来改进这个示例项目。
+1. **权限**: 确保 `manifest.json` 中包含必要的权限
+2. **CSP**: Content Script 注入的脚本需要遵守 CSP 策略
+3. **错误处理**: 所有异步操作都包含完整的错误处理
+4. **类型安全**: 使用 TypeScript 确保类型安全
+
+## 扩展功能建议
+
+- 添加消息历史记录
+- 实现数据导出功能
+- 添加配置选项
+- 支持快捷键操作
+- 添加主题切换
+- 实现数据同步功能
+
+这个示例展示了 Chrome 扩展开发的最佳实践，可以作为开发其他扩展的参考模板。

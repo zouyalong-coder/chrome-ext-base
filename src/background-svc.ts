@@ -1,77 +1,25 @@
 import { MessageRequest, MessageResponse } from './types/message';
+import { MessageService } from './message-service';
 
 export type Handler<P, R> = (params: P) => Promise<R>;
 
-/**
- * 向 background 发送消息的通用方法
- * @param action 动作名称
- * @param params 参数
- * @returns Promise<MessageResponse>
- */
-export async function callBg<P, R>(method: string, params: P): Promise<R> {
-  try {
-    const response = await chrome.runtime.sendMessage({
-      method,
-      params,
-    } as MessageRequest);
-    if (response.error) {
-      throw new Error(response.error);
-    }
-    return response.data;
-  } catch (error) {
-    throw error instanceof Error ? error : new Error('unknown error');
-  }
-}
+// 为了向后兼容，重新导出 MessageService 的方法
+export const callBg = MessageService.sendToBackground;
+export const callContentScript = MessageService.sendToContent;
 
-/**
- * 调用 content script 的函数
- * @param action 动作名称
- * @param params 参数
- * @returns Promise<any>
- */
-export async function callContentScript<P, R>(method: string, params: P): Promise<R> {
-  return new Promise((resolve, reject) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
-      const activeTab = tabs[0];
-      if (activeTab?.id) {
-        chrome.tabs.sendMessage(activeTab.id, { method, params }, (response: R) => {
-          resolve(response);
-        });
-      } else {
-        reject(new Error('no active tab'));
-      }
-    });
-  });
-}
-
-/**
- * 调用 content script 的函数
- * @param action 动作名称
- * @param params 参数
- * @param tabId 目标 tab id
- * @returns Promise<any>
- */
+// 向后兼容的包装函数，支持可选的 tabId 参数
 export async function callContentScriptToTab<P, R>(
   method: string,
   params: P,
-  tabId: number | null = null
+  tabId?: number | null
 ): Promise<R> {
-  const targetTabId: number =
-    tabId ?? (await chrome.tabs.query({ active: true, currentWindow: true }))[0]!.id!;
-  if (!targetTabId) {
-    throw new Error('no active tab');
+  if (tabId) {
+    return MessageService.sendToContentTab(method, params, tabId);
+  } else {
+    return MessageService.sendToContent(method, params);
   }
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.tabs.sendMessage(targetTabId as number, { method, params }, (response: R) => {
-        resolve(response);
-      });
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error('unknown error');
-      reject(err);
-    }
-  });
 }
+
 export class BackgroundSvc {
   private handlers: Map<string, Handler<any, any>>;
   private defaultHandler: Handler<any, any> | null;
@@ -83,6 +31,10 @@ export class BackgroundSvc {
 
   public register<P, R>(handler: Handler<P, R>) {
     this.handlers.set(handler.name, handler as Handler<any, any>);
+  }
+
+  public registerHandler<P, R>(method: string, handler: Handler<P, R>) {
+    this.handlers.set(method, handler as Handler<any, any>);
   }
 
   public serve() {

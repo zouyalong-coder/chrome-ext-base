@@ -1,6 +1,6 @@
 {
   "name": "chrome-ext-base",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "A TypeScript library for Chrome extension development",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,9 @@
   },
   "keywords": [
     "typescript",
-    "chrome-extension"
+    "chrome-extension",
+    "chrome-ext",
+    "browser-extension"
   ],
   "author": "",
   "license": "LGPL-3.0",
@@ -32,6 +34,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "MESSAGE_SERVICE.md",
+    "LICENSE",
+    "example"
   ]
 }
