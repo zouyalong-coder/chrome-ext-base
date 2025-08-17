@@ -89,7 +89,7 @@ export class BackgroundSvc {
     chrome.runtime.onMessage.addListener(
       (
         request: MessageRequest,
-        sender: chrome.runtime.MessageSender,
+        _sender: chrome.runtime.MessageSender,
         sendResponse: (response: MessageResponse) => void
       ) => {
         const { method } = request;

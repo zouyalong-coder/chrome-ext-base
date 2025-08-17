@@ -9,7 +9,7 @@ export class Inject {
   }
 
   private initMessageListener() {
-    chrome.runtime.onMessage.addListener((request: MessageRequest, sender, sendResponse) => {
+    chrome.runtime.onMessage.addListener((request: MessageRequest, _sender, sendResponse) => {
       const handleRequest = async () => {
         try {
           const { method, params } = request;
